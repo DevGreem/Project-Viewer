@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Project Viewer",
+  "version": "0.1.0",
+  "identifier": "com.ian.projectviewer",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Project Viewer",
+        "width": 960,
+        "height": 640,
+        "minWidth": 720,
+        "minHeight": 480,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/covers/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "appimage"],
+    "category": "Development",
+    "shortDescription": "Dashboard for active local projects",
+    "longDescription": "Project Viewer shows the local projects you are working on in a compact grid and lets you open or edit them quickly.",
+    "copyright": "ian",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}
