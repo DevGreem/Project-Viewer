@@ -74,20 +74,24 @@ impl AppError {
         Self::new("PATH_UNAVAILABLE", message)
     }
 
-    pub fn tool_not_found(tool: &str) -> Self {
-        Self::with_details(
-            "TOOL_NOT_FOUND",
-            "The required desktop tool is not installed",
-            tool,
-        )
-    }
-
     pub fn spawn_failed(message: impl Into<String>) -> Self {
         Self::new("SPAWN_FAILED", message)
     }
 
     pub fn invalid_action(action: &str) -> Self {
         Self::with_details("INVALID_ACTION", "Unknown project action", action)
+    }
+
+    pub fn invalid_launcher_config(message: impl Into<String>) -> Self {
+        Self::new("INVALID_LAUNCHER_CONFIG", message)
+    }
+
+    pub fn invalid_command_template(message: impl Into<String>) -> Self {
+        Self::new("INVALID_COMMAND_TEMPLATE", message)
+    }
+
+    pub fn launcher_not_available(message: impl Into<String>) -> Self {
+        Self::new("LAUNCHER_NOT_AVAILABLE", message)
     }
 
     pub fn autostart_failed(message: impl Into<String>) -> Self {

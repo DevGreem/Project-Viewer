@@ -2,12 +2,14 @@ mod actions;
 mod autostart;
 mod catalog;
 mod error;
+mod launchers;
 mod settings;
 
-use actions::{ActionAvailability, ProjectAction};
+use actions::ProjectAction;
 use autostart::AutostartState;
 use catalog::{CatalogStore, CatalogView, ProjectInput, StagedCover};
 use error::{AppError, AppResult};
+use launchers::{EditorChoice, LauncherAvailability, LauncherSettingsView, TerminalChoice};
 use settings::SettingsStore;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -95,8 +97,53 @@ fn discard_cover(state: State<'_, AppState>, cover_path: String) -> AppResult<()
 }
 
 #[tauri::command]
-fn get_action_availability() -> ActionAvailability {
+fn get_launcher_availability() -> LauncherAvailability {
     actions::availability()
+}
+
+#[tauri::command]
+fn get_launcher_settings(state: State<'_, AppState>) -> AppResult<LauncherSettingsView> {
+    let (default_editor, default_terminal) = {
+        let settings = state
+            .settings
+            .lock()
+            .map_err(|_| AppError::internal("The settings lock is poisoned"))?;
+        (
+            settings.get().default_editor.clone(),
+            settings.get().default_terminal.clone(),
+        )
+    };
+
+    Ok(LauncherSettingsView {
+        default_editor,
+        default_terminal,
+        availability: actions::availability(),
+    })
+}
+
+#[tauri::command]
+fn set_launcher_settings(
+    state: State<'_, AppState>,
+    editor: EditorChoice,
+    terminal: TerminalChoice,
+) -> AppResult<LauncherSettingsView> {
+    let (default_editor, default_terminal) = {
+        let mut settings = state
+            .settings
+            .lock()
+            .map_err(|_| AppError::internal("The settings lock is poisoned"))?;
+        settings.set_launchers(editor, terminal)?;
+        (
+            settings.get().default_editor.clone(),
+            settings.get().default_terminal.clone(),
+        )
+    };
+
+    Ok(LauncherSettingsView {
+        default_editor,
+        default_terminal,
+        availability: actions::availability(),
+    })
 }
 
 #[tauri::command]
@@ -105,12 +152,12 @@ fn open_project_action(
     project_id: String,
     action: String,
 ) -> AppResult<()> {
-    let path = {
+    let (path, project_editor, project_terminal) = {
         let store = state
             .catalog
             .lock()
             .map_err(|_| AppError::internal("The project catalog lock is poisoned"))?;
-        store.project_path(&project_id)?
+        store.project_launchers(&project_id)?
     };
 
     if !path.is_dir() {
@@ -119,7 +166,21 @@ fn open_project_action(
         ));
     }
 
-    actions::spawn_action(ProjectAction::parse(&action)?, &path)
+    let (default_editor, default_terminal) = {
+        let settings = state
+            .settings
+            .lock()
+            .map_err(|_| AppError::internal("The settings lock is poisoned"))?;
+        (
+            settings.get().default_editor.clone(),
+            settings.get().default_terminal.clone(),
+        )
+    };
+
+    let editor = project_editor.unwrap_or(default_editor);
+    let terminal = project_terminal.unwrap_or(default_terminal);
+
+    actions::open_action(ProjectAction::parse(&action)?, &path, &editor, &terminal)
 }
 
 #[tauri::command]
@@ -203,7 +264,9 @@ pub fn run() {
             delete_project,
             stage_cover,
             discard_cover,
-            get_action_availability,
+            get_launcher_availability,
+            get_launcher_settings,
+            set_launcher_settings,
             open_project_action,
             get_autostart_state,
             set_autostart_enabled

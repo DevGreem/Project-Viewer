@@ -1,4 +1,7 @@
 use crate::error::{AppError, AppResult};
+use crate::launchers::{
+    normalize_editor_choice, normalize_terminal_choice, EditorChoice, TerminalChoice,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Write};
@@ -51,6 +54,10 @@ pub struct Project {
     pub created_at: u64,
     pub updated_at: u64,
     pub archived_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor: Option<EditorChoice>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal: Option<TerminalChoice>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -63,6 +70,10 @@ pub struct ProjectInput {
     pub cover: Option<String>,
     #[serde(default)]
     pub remove_cover: bool,
+    #[serde(default)]
+    pub editor: Option<EditorChoice>,
+    #[serde(default)]
+    pub terminal: Option<TerminalChoice>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -146,7 +157,10 @@ impl CatalogStore {
         }
     }
 
-    pub fn project_path(&self, project_id: &str) -> AppResult<PathBuf> {
+    pub fn project_launchers(
+        &self,
+        project_id: &str,
+    ) -> AppResult<(PathBuf, Option<EditorChoice>, Option<TerminalChoice>)> {
         let project = self
             .catalog
             .projects
@@ -158,7 +172,11 @@ impl CatalogStore {
             AppError::path_unavailable("This project does not have a local path configured")
         })?;
 
-        Ok(PathBuf::from(path))
+        Ok((
+            PathBuf::from(path),
+            project.editor.clone(),
+            project.terminal.clone(),
+        ))
     }
 
     pub fn create_project(&mut self, input: ProjectInput) -> AppResult<CatalogView> {
@@ -172,6 +190,8 @@ impl CatalogStore {
             Some(staged) => Some(promote_staged_cover(&self.data_dir, &id, staged, now)?),
             None => None,
         };
+        let editor = input.editor.map(normalize_editor_choice).transpose()?;
+        let terminal = input.terminal.map(normalize_terminal_choice).transpose()?;
 
         let project = Project {
             id,
@@ -182,6 +202,8 @@ impl CatalogStore {
             created_at: now,
             updated_at: now,
             archived_at: None,
+            editor,
+            terminal,
         };
 
         let previous = self.catalog.clone();
@@ -234,6 +256,9 @@ impl CatalogStore {
             }
         };
 
+        let editor = input.editor.map(normalize_editor_choice).transpose()?;
+        let terminal = input.terminal.map(normalize_terminal_choice).transpose()?;
+
         let updated = Project {
             id: existing.id.clone(),
             name,
@@ -243,6 +268,8 @@ impl CatalogStore {
             created_at: existing.created_at,
             updated_at: now_ms(),
             archived_at: existing.archived_at,
+            editor,
+            terminal,
         };
 
         let previous = self.catalog.clone();
@@ -610,6 +637,8 @@ mod tests {
             path: None,
             cover: None,
             remove_cover: false,
+            editor: None,
+            terminal: None,
         }
     }
 
@@ -637,6 +666,73 @@ mod tests {
 
         let reloaded = CatalogStore::load(directory.path().to_path_buf()).expect("reload");
         assert_eq!(reloaded.view().projects.len(), 1);
+    }
+
+    #[test]
+    fn loads_legacy_projects_without_launcher_fields() {
+        let (directory, _store) = store();
+        let legacy = r#"{
+          "version": 1,
+          "projects": [{
+            "id": "11111111-1111-4111-8111-111111111111",
+            "name": "Legacy",
+            "path": null,
+            "cover": null,
+            "status": "active",
+            "createdAt": 1,
+            "updatedAt": 2,
+            "archivedAt": null
+          }]
+        }"#;
+        fs::write(directory.path().join(CATALOG_FILE), legacy).expect("legacy catalog");
+
+        let reloaded = CatalogStore::load(directory.path().to_path_buf()).expect("reload");
+        let project = &reloaded.view().projects[0];
+        assert!(project.editor.is_none());
+        assert!(project.terminal.is_none());
+    }
+
+    #[test]
+    fn persists_project_launcher_overrides() {
+        let (directory, mut store) = store();
+        let view = store
+            .create_project(ProjectInput {
+                editor: Some(EditorChoice {
+                    kind: crate::launchers::EditorKind::Godot,
+                    command: None,
+                }),
+                terminal: Some(TerminalChoice {
+                    kind: crate::launchers::TerminalKind::GnomeTerminal,
+                    command: None,
+                }),
+                ..project_input("With launchers")
+            })
+            .expect("create");
+
+        let id = view.projects[0].id.clone();
+        let reloaded = CatalogStore::load(directory.path().to_path_buf()).expect("reload");
+        let project = &reloaded.view().projects[0];
+        assert_eq!(
+            project.editor.as_ref().map(|choice| choice.kind),
+            Some(crate::launchers::EditorKind::Godot)
+        );
+        assert_eq!(
+            project.terminal.as_ref().map(|choice| choice.kind),
+            Some(crate::launchers::TerminalKind::GnomeTerminal)
+        );
+
+        let updated = store
+            .update_project(
+                &id,
+                ProjectInput {
+                    editor: None,
+                    terminal: None,
+                    ..project_input("With launchers")
+                },
+            )
+            .expect("update");
+        assert!(updated.projects[0].editor.is_none());
+        assert!(updated.projects[0].terminal.is_none());
     }
 
     #[test]

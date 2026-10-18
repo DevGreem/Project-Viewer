@@ -1,5 +1,8 @@
 use crate::catalog::write_json_atomic;
 use crate::error::AppResult;
+use crate::launchers::{
+    normalize_editor_choice, normalize_terminal_choice, EditorChoice, TerminalChoice,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,6 +19,10 @@ pub struct SettingsFile {
     pub autostart_initialized: bool,
     #[serde(default)]
     pub autostart_enabled: bool,
+    #[serde(default)]
+    pub default_editor: EditorChoice,
+    #[serde(default)]
+    pub default_terminal: TerminalChoice,
 }
 
 impl Default for SettingsFile {
@@ -24,6 +31,8 @@ impl Default for SettingsFile {
             version: SETTINGS_VERSION,
             autostart_initialized: false,
             autostart_enabled: false,
+            default_editor: EditorChoice::default(),
+            default_terminal: TerminalChoice::default(),
         }
     }
 }
@@ -79,6 +88,16 @@ impl SettingsStore {
         self.save()
     }
 
+    pub fn set_launchers(
+        &mut self,
+        editor: EditorChoice,
+        terminal: TerminalChoice,
+    ) -> AppResult<()> {
+        self.settings.default_editor = normalize_editor_choice(editor)?;
+        self.settings.default_terminal = normalize_terminal_choice(terminal)?;
+        self.save()
+    }
+
     fn save(&self) -> AppResult<()> {
         write_json_atomic(&self.data_dir, SETTINGS_FILE, &self.settings)
     }
@@ -118,6 +137,54 @@ mod tests {
         let reloaded = SettingsStore::load(directory.path().to_path_buf()).expect("reload again");
         assert!(reloaded.get().autostart_initialized);
         assert!(!reloaded.get().autostart_enabled);
+    }
+
+    #[test]
+    fn loads_legacy_settings_with_default_launchers() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        fs::write(
+            directory.path().join(SETTINGS_FILE),
+            r#"{"version":1,"autostartInitialized":true,"autostartEnabled":true}"#,
+        )
+        .expect("legacy settings");
+
+        let store = SettingsStore::load(directory.path().to_path_buf()).expect("settings");
+        assert_eq!(
+            store.get().default_editor.kind,
+            crate::launchers::EditorKind::Auto
+        );
+        assert_eq!(
+            store.get().default_terminal.kind,
+            crate::launchers::TerminalKind::Auto
+        );
+    }
+
+    #[test]
+    fn persists_launcher_defaults() {
+        let directory = tempfile::tempdir().expect("temp dir");
+        let mut store = SettingsStore::load(directory.path().to_path_buf()).expect("settings");
+        store
+            .set_launchers(
+                crate::launchers::EditorChoice {
+                    kind: crate::launchers::EditorKind::Godot,
+                    command: None,
+                },
+                crate::launchers::TerminalChoice {
+                    kind: crate::launchers::TerminalKind::GnomeTerminal,
+                    command: None,
+                },
+            )
+            .expect("set launchers");
+
+        let reloaded = SettingsStore::load(directory.path().to_path_buf()).expect("reload");
+        assert_eq!(
+            reloaded.get().default_editor.kind,
+            crate::launchers::EditorKind::Godot
+        );
+        assert_eq!(
+            reloaded.get().default_terminal.kind,
+            crate::launchers::TerminalKind::GnomeTerminal
+        );
     }
 
     #[test]
