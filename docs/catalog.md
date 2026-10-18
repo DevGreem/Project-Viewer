@@ -29,7 +29,9 @@ In debug builds, `PROJECT_VIEWER_DATA_DIR` can override the directory for isolat
       "status": "active",
       "createdAt": 1760000000000,
       "updatedAt": 1760000000000,
-      "archivedAt": null
+      "archivedAt": null,
+      "editor": { "kind": "godot" },
+      "terminal": { "kind": "gnome-terminal" }
     }
   ]
 }
@@ -47,6 +49,8 @@ In debug builds, `PROJECT_VIEWER_DATA_DIR` can override the directory for isolat
 | `createdAt` | number | Epoch milliseconds. |
 | `updatedAt` | number | Epoch milliseconds; the active grid sorts by this descending. |
 | `archivedAt` | number \| null | Epoch milliseconds when archived; `null` for active projects. |
+| `editor` | object \| absent | Optional editor override: `{ "kind": "vscode" \| "godot" \| "auto" \| "custom", "command"?: string }`. Absent or `null` inherits the global editor. |
+| `terminal` | object \| absent | Optional terminal override: `{ "kind": "gnome-terminal" \| "konsole" \| "xfce4-terminal" \| "kitty" \| "alacritty" \| "auto" \| "custom", "command"?: string }`. Absent or `null` inherits the global terminal. |
 
 ## `settings.json`
 
@@ -54,11 +58,15 @@ In debug builds, `PROJECT_VIEWER_DATA_DIR` can override the directory for isolat
 {
   "version": 1,
   "autostartInitialized": true,
-  "autostartEnabled": true
+  "autostartEnabled": true,
+  "defaultEditor": { "kind": "auto" },
+  "defaultTerminal": { "kind": "auto" }
 }
 ```
 
 `autostartInitialized` prevents re-enabling autostart after the user disabled it. The actual XDG entry is managed by `tauri-plugin-autostart`; the app refreshes its executable path on startup.
+
+`defaultEditor` and `defaultTerminal` use `auto`, a built-in kind, or `custom` with a `command` template. `auto` picks the first available tool. Projects without an override inherit these values. The new fields are optional, so existing settings load with `auto` without a schema migration.
 
 ## Validation rules
 
@@ -67,6 +75,7 @@ In debug builds, `PROJECT_VIEWER_DATA_DIR` can override the directory for isolat
 - **Duplicate paths:** two **active** projects cannot share the same canonical path. An archived project's path can be reused.
 - **Cover:** PNG, JPEG, WebP, or GIF; maximum 5 MB. The file's magic bytes are checked, not just its extension. SVG is rejected.
 - **Path deletion:** removing a project never deletes the referenced local folder.
+- **Launchers:** a custom editor/terminal command must be a non-empty template containing `{path}`. The template is parsed into arguments without a shell; quotes are supported and `{path}` is substituted as one argument. Built-in kinds must be one of the IDs above; unavailable tools may be saved but the action is disabled.
 
 ## Cover pipeline
 
@@ -106,13 +115,15 @@ Commands return `{ "code": string, "message": string, "details"?: string }` on f
 | `PROJECT_NOT_FOUND` | Unknown project id. |
 | `PROJECT_NOT_ARCHIVED` | Delete requested for an active project. |
 | `PATH_UNAVAILABLE` | Project has no path or its folder no longer exists. |
-| `TOOL_NOT_FOUND` | `xdg-open`, `code`, or a terminal was not detected. |
+| `LAUNCHER_NOT_AVAILABLE` | The configured editor/terminal or `xdg-open` is not installed. |
+| `INVALID_LAUNCHER_CONFIG` | Unknown or inconsistent launcher configuration. |
+| `INVALID_COMMAND_TEMPLATE` | Custom command is empty, lacks `{path}`, or has invalid quoting. |
 | `SPAWN_FAILED` | The tool could not be launched. |
-| `INVALID_ACTION` | Action outside `folder`, `vscode`, `terminal`. |
+| `INVALID_ACTION` | Action outside `folder`, `editor`, `terminal`. |
 | `AUTOSTART_FAILED` | Autostart could not be enabled/disabled, or was requested in dev mode. |
 | `INTERNAL` | Unexpected filesystem or serialization failure. |
 
 ## Tests
 
-- Rust: `cd src-tauri && source ~/.cargo/env && cargo test` covers serialization, atomic writes, corruption recovery, validation, duplicates, cover handling, action argument construction, and autostart preference logic.
-- Frontend: `npm run test` covers the catalog hook, grid, form, menu, archived view, settings toggle, and integration flows.
+- Rust: `cd src-tauri && source ~/.cargo/env && cargo test` covers serialization, atomic writes, corruption recovery, validation, duplicates, cover handling, launcher detection, terminal working-directory regression, command-template parsing, launcher resolution, and autostart preference logic.
+- Frontend: `npm run test` covers the catalog hook, grid, form, per-project launcher overrides, global launcher settings, dynamic action labels, archived view, settings toggle, and integration flows.

@@ -8,10 +8,10 @@
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Rust unit tests | `cd src-tauri && source ~/.cargo/env && cargo test` | 24 passed |
+| Rust unit tests | `cd src-tauri && source ~/.cargo/env && cargo test` | 37 passed |
 | Rust lints | `cargo clippy -- -D warnings` | clean |
 | TypeScript | `npm run typecheck` | clean |
-| Frontend tests | `npm run test` | 33 passed in 9 files |
+| Frontend tests | `npm run test` | 38 passed in 9 files |
 | Frontend production build | `npm run build` | built successfully |
 | Tauri bundles | `npm run tauri build -- --bundles deb,appimage` | `.deb` and AppImage generated |
 
@@ -76,6 +76,27 @@ With the app already running on `:102`, a second `/usr/bin/project-viewer --auto
 - `.deb`: `src-tauri/target/release/bundle/deb/Project Viewer_0.1.0_amd64.deb` (2.46 MiB). Installed with `apt`, runs as `/usr/bin/project-viewer`.
 - AppImage: `src-tauri/target/release/bundle/appimage/Project Viewer_0.1.0_amd64.AppImage` (84.17 MiB). Runs on Xvfb, updates autostart, and is self-contained apart from the system WebKitGTK/GTK runtime.
 - The `.deb` declares `libwebkit2gtk-4.1-0` and `libgtk-3-0`; the build host also required the `-dev` headers listed in the README.
+
+## Launcher configuration revision (2026-10-18)
+
+The group 7 changes were exercised in a debug build with an isolated data directory (`PROJECT_VIEWER_DATA_DIR=/tmp/opencode/pv-launcher-demo`) and logging shims on `PATH` for `code`, `godot`, `gnome-terminal`, and `xdg-open`.
+
+1. **Global defaults:** opened Ajustes → Lanzadores, changed the editor from `Automático` to `Godot`, saved. The settings file persisted:
+   `"defaultEditor": { "kind": "godot" }`, and the toast `Lanzadores actualizados.` appeared.
+2. **Inheritance:** created `Launcher Demo` with path `/tmp/opencode`, leaving editor/terminal on `Heredar`. The project JSON had no `editor`/`terminal` fields and the menu showed `Abrir en Godot` and `Abrir terminal (GNOME Terminal)`.
+3. **Godot execution:** clicking `Abrir en Godot` produced:
+   ```text
+   godot argc=3 [--editor] [--path] [/tmp/opencode]
+   ```
+4. **Terminal bug fix:** clicking `Abrir terminal (GNOME Terminal)` produced:
+   ```text
+   gnome-terminal argc=1 [--working-directory=/tmp/opencode]
+   ```
+   This is the key regression: the wrapper `x-terminal-emulator` is no longer selected and the terminal receives the project directory.
+5. **Per-project override:** edited the project, changed its editor to VS Code, saved. The project JSON stored `"editor": { "kind": "vscode" }`, the menu changed to `Abrir en VS Code`, and clicking it produced `code argc=1 [/tmp/opencode]`.
+6. **Custom command validation:** frontend tests reject commands without `{path}`; Rust tests cover quoted arguments, spaces, metacharacters, empty templates, and unterminated quotes.
+7. **Settings/UI tests:** 38 frontend tests cover global settings, per-project overrides, dynamic labels, unavailable tools, and form validation.
+8. **Packaged binary:** the installed `.deb` was run with a temporary project (`editor: godot` override) and the same shims. It produced `gnome-terminal --working-directory=/tmp/opencode` and `godot --editor --path /tmp/opencode`; the temporary catalog was removed afterward.
 
 ## Known limitations / notes
 

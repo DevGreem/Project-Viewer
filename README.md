@@ -13,12 +13,15 @@ A small Linux desktop dashboard for the local projects you are working on. It op
 ## Features
 
 - Window with a responsive grid of active projects (cover, name, local path).
-- Create and edit projects in a modal: cover image, name, and local path.
+- Create and edit projects in a modal: cover image, name, local path, and launcher preferences.
 - Cover images (PNG, JPEG, WebP, GIF up to 5 MB) are copied into the app data directory.
+- Global defaults and per-project overrides for the editor and terminal:
+  - Editors: automatic, VS Code, Godot, or a custom command.
+  - Terminals: automatic, GNOME Terminal, Konsole, Xfce Terminal, kitty, Alacritty, or a custom command.
 - Card action menu:
   - Open the project folder in the system file manager.
-  - Open the folder in VS Code.
-  - Open a terminal in the project folder.
+  - Open the folder in the configured editor (label adapts to VS Code, Godot, or custom).
+  - Open the configured terminal in the project folder.
   - Edit or close the project.
 - Archive view with restore and permanent delete.
 - Projects persist in `projects.json`; corrupt catalogs are backed up and recovered.
@@ -53,7 +56,7 @@ A small Linux desktop dashboard for the local projects you are working on. It op
     build-essential
   ```
 
-- Desktop tools used by the action menu: `xdg-open`, `code` (VS Code), and a terminal such as `gnome-terminal` / `x-terminal-emulator`.
+- Desktop tools used by the action menu: `xdg-open`, optionally `code` and `godot`/`godot4`, and a direct terminal such as `gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, or `alacritty`. The `x-terminal-emulator` wrapper is intentionally not used because it drops the working-directory argument.
 
 ## Development
 
@@ -93,15 +96,15 @@ The override is only honored in debug builds. The asset protocol is scoped to th
 ## Usage
 
 1. Start the app with `npm run tauri dev` or the installed `project-viewer` binary.
-2. Click **Nuevo proyecto**, write a name, optionally pick a local folder and a cover image, then save.
+2. Click **Nuevo proyecto**, write a name, optionally pick a local folder and a cover image, and choose the editor/terminal for that project (or leave **Heredar**), then save.
 3. Click any card to open its action menu:
    - **Abrir carpeta** opens the folder in the system file manager.
-   - **Abrir en VS Code** opens it in VS Code (disabled if `code` is not installed).
-   - **Abrir terminal** opens a terminal in that folder (disabled if no compatible terminal is found).
-   - **Editar** changes the name, path, or cover.
+   - **Abrir en VS Code**, **Abrir en Godot**, or **Abrir con editor personalizado** opens the configured editor (disabled if the tool is not installed).
+   - **Abrir terminal (GNOME Terminal)** (or the configured terminal) opens the configured terminal in that folder (disabled if no compatible terminal is found).
+   - **Editar** changes the name, path, cover, or launcher overrides.
    - **Cerrar proyecto** archives the project.
 4. Use **Archivados** to restore a project or delete it permanently. Deleting only removes the catalog entry and its copied cover; the real folder is never touched.
-5. Open the gear menu to enable or disable **Iniciar al iniciar sesión**. In development mode the control is disabled; it becomes available in an installed build.
+5. Open the gear menu to configure the global default editor/terminal and to enable or disable **Iniciar al iniciar sesión**. In development mode autostart is disabled; it becomes available in an installed build.
 
 ## Data location
 
@@ -109,8 +112,8 @@ The app stores data in Tauri's app data directory, normally:
 
 ```text
 ~/.local/share/com.ian.projectviewer/
-├── projects.json     # catalog (versioned JSON)
-├── settings.json     # autostart preference
+├── projects.json     # catalog, including per-project launcher overrides
+├── settings.json     # autostart and global launcher defaults
 └── covers/           # copied cover images and temporary staged files
 ```
 
@@ -123,10 +126,18 @@ The backend searches `PATH`, `/usr/bin`, `/usr/local/bin`, `~/.local/bin`, and `
 | Action | Tool / candidates |
 | --- | --- |
 | Open folder | `xdg-open` |
-| Open in VS Code | `code` |
-| Open terminal | `x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, `alacritty` |
+| Open in editor | `code` (VS Code), `godot`/`godot4` (Godot), or a custom command template |
+| Open terminal | `gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, `alacritty`, or a custom command template |
 
 Paths are passed as a single process argument; the app never runs them through a shell. If a tool is missing, its menu item is disabled and explains why. If a project folder disappears after saving, the open action shows an error and asks you to edit the path.
+
+### Launcher configuration
+
+- **Global defaults** live in the gear menu: editor, terminal, or custom commands.
+- **Per-project overrides** live in the project form. **Heredar** uses the global value.
+- `Automático` picks the first available editor/terminal; `Personalizado` expects a command template containing `{path}`. The template is tokenized and executed directly, without a shell.
+- Godot opens with `godot --editor --path <project>` (or `godot4`); the folder does not need `project.godot`.
+- `x-terminal-emulator` is not a candidate because its Debian wrapper discards `--working-directory`. If only that wrapper exists, the terminal action is disabled rather than opening from `~`.
 
 ## Autostart
 

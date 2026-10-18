@@ -1,14 +1,14 @@
-# Spec Delta
+# project-catalog Specification
 
 ## Purpose
 
 Gestiona el catálogo local de proyectos del usuario: alta, edición, cierre, restauración, eliminación, portada y persistencia en disco.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Alta de proyectos
 
-El usuario DEBE (SHALL) poder crear un proyecto desde la ventana principal indicando un nombre obligatorio y, opcionalmente, una ruta local y una imagen de portada. Al guardarlo, el sistema DEBE asignarle un identificador estable, marcarlo como activo y persistirlo en el catálogo local.
+El usuario DEBE (SHALL) poder crear un proyecto desde la ventana principal indicando un nombre obligatorio y, opcionalmente, una ruta local, una imagen de portada y preferencias de editor/terminal. Al guardarlo, el sistema DEBE asignarle un identificador estable, marcarlo como activo y persistirlo en el catálogo local.
 
 #### Scenario: Crear un proyecto con nombre, ruta y portada
 
@@ -27,7 +27,7 @@ El usuario DEBE (SHALL) poder crear un proyecto desde la ventana principal indic
 
 ### Requirement: Edición de proyectos
 
-El usuario DEBE (SHALL) poder editar el nombre, la ruta local y la portada de cualquier proyecto existente. Los cambios DEBEN persistir y reflejarse de inmediato en la grilla; al reemplazar o quitar la portada, el sistema DEBE eliminar la copia anterior.
+El usuario DEBE (SHALL) poder editar el nombre, la ruta local, la portada y las preferencias de editor/terminal de cualquier proyecto existente. Los cambios DEBEN persistir y reflejarse de inmediato en la grilla; al reemplazar o quitar la portada, el sistema DEBE eliminar la copia anterior.
 
 #### Scenario: Editar los datos de un proyecto
 
@@ -38,6 +38,30 @@ El usuario DEBE (SHALL) poder editar el nombre, la ruta local y la portada de cu
 
 - **WHEN** el usuario elimina la portada de un proyecto que tenía una imagen
 - **THEN** la tarjeta muestra el marcador visual por defecto y la copia anterior de la imagen deja de existir en el directorio de datos
+
+### Requirement: Preferencias de lanzadores por proyecto
+
+Cada proyecto DEBE (SHALL) poder guardar un override opcional de editor y otro de terminal, o heredar los valores globales. La preferencia DEBE persistir con el proyecto y los proyectos existentes DEBEN cargarse como «Heredar» sin migración manual.
+
+#### Scenario: Crear un proyecto con editor y terminal propios
+
+- **WHEN** el usuario crea un proyecto y elige Godot como editor y GNOME Terminal como terminal
+- **THEN** el proyecto guarda ambos overrides y los usa en lugar de los valores globales
+
+#### Scenario: Proyecto existente sin overrides
+
+- **WHEN** la app carga un proyecto creado antes de existir esta función
+- **THEN** el proyecto se interpreta como «Heredar» y usa los lanzadores globales
+
+#### Scenario: Editar los overrides
+
+- **WHEN** el usuario cambia el editor del proyecto de VS Code a Godot y guarda
+- **THEN** el override persiste tras reiniciar la app y la acción de editor usa Godot
+
+#### Scenario: Guardar una herramienta no detectada
+
+- **WHEN** el usuario guarda un editor o terminal que no está instalado
+- **THEN** la preferencia se conserva con una advertencia y la acción queda deshabilitada hasta que la herramienta esté disponible
 
 ### Requirement: Validación de la ruta local
 

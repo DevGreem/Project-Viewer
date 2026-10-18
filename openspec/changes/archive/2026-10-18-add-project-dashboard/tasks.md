@@ -54,6 +54,20 @@
 - [x] 6.5 Ejecutar la suite completa: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`, `npm run typecheck`, `npm run test` y `npm run build`; verificar que todo pasa sin errores.
 - [x] 6.6 Revisar el README final (requisitos, uso, datos, acciones, autostart, build, alcance Linux y trabajo futuro multiplataforma) y verificar que no quedan instrucciones desactualizadas.
 
+## 7. Lanzadores configurables y corrección de terminal
+
+Esta sección revisa el comportamiento implementado en el grupo 4. Las tareas anteriores permanecen como historial del primer MVP.
+
+- [x] 7.1 Extender `Project`, `ProjectInput` y `SettingsFile` con `LauncherChoice` (editor/terminal globales y overrides por proyecto), usando `null`/`auto` como herencia y defaults; verificar con tests de serialización y carga de JSON antiguo sin los campos nuevos.
+- [x] 7.2 Implementar la detección de editores (`code`, `godot`, `godot4`) y terminales directas (`gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, `alacritty`), excluyendo `x-terminal-emulator`; exponer disponibilidad y verificar con tests de PATH presente/ausente y de que el wrapper no se selecciona.
+- [x] 7.3 Implementar un parser seguro de plantillas `{path}` con comillas simples/dobles y escapes, sin shell; verificar tests de sustitución, rutas con espacios/metacaracteres, plantilla vacía, plantilla sin `{path}` y comillas sin cerrar.
+- [x] 7.4 Resolver el lanzador efectivo (override → global → automático) y ejecutar las acciones `editor`/`terminal`; verificar con tests la precedencia, `godot --editor --path`, comandos personalizados y la regresión de terminal que comprueba `--working-directory` en `gnome-terminal`.
+- [x] 7.5 Añadir la configuración global de lanzadores en Ajustes (automático, VS Code, Godot, terminales detectadas y comando personalizado) con validación y persistencia; verificar con tests de cambio de default, comando inválido y herramienta no disponible.
+- [x] 7.6 Añadir al formulario de proyecto la sección “Lanzadores” con «Heredar» y overrides de editor/terminal; verificar con tests de alta, edición, herencia del global y persistencia tras reiniciar.
+- [x] 7.7 Actualizar el menú de acciones con etiquetas dinámicas para el editor y la terminal efectivos, y deshabilitar las acciones cuando la herramienta no está disponible; verificar con tests de VS Code, Godot, comando personalizado y terminal ausente.
+- [x] 7.8 Actualizar `README.md`, `docs/catalog.md` y `docs/manual-tests.md` con la configuración global/por proyecto, la tabla de terminales y la nota de que `x-terminal-emulator` ya no se usa; verificar que los comandos y pasos documentados coinciden con la implementación.
+- [x] 7.9 Ejecutar `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`, `npm run typecheck`, `npm run test`, `npm run build`, `npm run tauri build -- --bundles deb,appimage` y `openspec validate add-project-dashboard --strict`; verificar manualmente que la terminal abre en la ruta real y que la app instalada sigue arrancando.
+
 ## Workflow follow-up
 
 - Archivar el cambio con `/opsx-archive` después de la implementación y la revisión del usuario.

@@ -78,7 +78,7 @@ Cada tarjeta DEBE (SHALL) abrir un menú contextual al hacer clic en ella o en s
 
 ### Requirement: Creación y edición en la misma ventana
 
-La app DEBE (SHALL) crear y editar proyectos mediante un formulario modal dentro de la ventana principal, sin abrir ventanas adicionales. El formulario DEBE incluir nombre, ruta local y portada, con acciones de guardar y cancelar.
+La app DEBE (SHALL) crear y editar proyectos mediante un formulario modal dentro de la ventana principal, sin abrir ventanas adicionales. El formulario DEBE incluir nombre, ruta local, portada y una sección de lanzadores con editor y terminal, con acciones de guardar y cancelar.
 
 #### Scenario: Crear un proyecto desde la cabecera
 
@@ -90,10 +90,39 @@ La app DEBE (SHALL) crear y editar proyectos mediante un formulario modal dentro
 - **WHEN** el usuario elige "Editar" en el menú de una tarjeta
 - **THEN** se abre el formulario con los datos actuales precargados y, al guardar, la tarjeta refleja los cambios
 
+#### Scenario: Configurar lanzadores por proyecto
+
+- **WHEN** el usuario elige un editor o terminal distinto de «Heredar» en el formulario
+- **THEN** el override se guarda con el proyecto y el menú de la tarjeta muestra la etiqueta correspondiente
+
+#### Scenario: Heredar los lanzadores globales
+
+- **WHEN** el usuario deja editor y terminal en «Heredar»
+- **THEN** el formulario muestra el valor global efectivo y el proyecto no guarda overrides propios
+
 #### Scenario: Cancelar el formulario
 
 - **WHEN** el usuario pulsa "Cancelar" o Escape con cambios sin guardar
 - **THEN** el formulario se cierra y el proyecto conserva sus datos anteriores
+
+### Requirement: Configuración global de lanzadores
+
+La app DEBE (SHALL) ofrecer un panel de ajustes para elegir el editor y la terminal globales: Automático, herramientas detectadas o comando personalizado con `{path}`. DEBE mostrar la disponibilidad, validar el comando y persistir los cambios.
+
+#### Scenario: Cambiar el editor global
+
+- **WHEN** el usuario elige Godot como editor global
+- **THEN** los proyectos que heredan el editor usan Godot y la preferencia persiste tras reiniciar la app
+
+#### Scenario: Configurar un comando personalizado
+
+- **WHEN** el usuario elige «Personalizado» e introduce una plantilla con `{path}`
+- **THEN** la app valida la plantilla, la guarda y la ofrece como lanzador global
+
+#### Scenario: Herramienta global no disponible
+
+- **WHEN** la herramienta elegida como valor global no está instalada
+- **THEN** el ajuste se guarda con una advertencia y las acciones que la usan aparecen deshabilitadas
 
 ### Requirement: Vista de archivados
 
