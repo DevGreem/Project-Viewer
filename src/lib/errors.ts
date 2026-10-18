@@ -24,6 +24,12 @@ const messages: Record<string, string> = {
   PATH_UNAVAILABLE:
     "La carpeta del proyecto ya no está disponible. Edita su ruta local.",
   TOOL_NOT_FOUND: "No se encontró la herramienta necesaria en el sistema.",
+  LAUNCHER_NOT_AVAILABLE:
+    "El editor o la terminal configurados no están disponibles en el sistema.",
+  INVALID_LAUNCHER_CONFIG:
+    "La configuración del lanzador no es válida. Revisa el editor o la terminal.",
+  INVALID_COMMAND_TEMPLATE:
+    "El comando personalizado debe incluir {path} y tener comillas correctas.",
   SPAWN_FAILED: "No se pudo abrir la herramienta seleccionada.",
   INVALID_ACTION: "La acción solicitada no es válida.",
   AUTOSTART_FAILED: "No se pudo cambiar el arranque automático.",

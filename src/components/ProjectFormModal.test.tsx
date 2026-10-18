@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { discardCover, stageCover } from "../api";
 import { ProjectFormModal } from "./ProjectFormModal";
-import { makeProject } from "../test/fixtures";
+import { launcherSettings, makeProject } from "../test/fixtures";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
@@ -32,6 +32,7 @@ function renderModal(
       open
       project={null}
       dataDir="/data"
+      launcherSettings={launcherSettings}
       onClose={onClose}
       onCreate={onCreate}
       onUpdate={onUpdate}
@@ -63,6 +64,8 @@ describe("ProjectFormModal", () => {
         path: null,
         cover: null,
         removeCover: false,
+        editor: null,
+        terminal: null,
       }),
     );
     expect(onClose).toHaveBeenCalled();
@@ -97,6 +100,8 @@ describe("ProjectFormModal", () => {
         path: project.path,
         cover: null,
         removeCover: false,
+        editor: null,
+        terminal: null,
       }),
     );
     expect(onClose).toHaveBeenCalled();
@@ -160,5 +165,55 @@ describe("ProjectFormModal", () => {
         "/home/ian/My Projects/App",
       ),
     );
+  });
+
+  it("saves per-project editor and terminal overrides", async () => {
+    const user = userEvent.setup();
+    const { onCreate } = renderModal();
+
+    await screen.findByRole("dialog");
+    await user.type(screen.getByLabelText("Nombre"), "Godot game");
+    await user.selectOptions(
+      screen.getByLabelText("Editor del proyecto"),
+      "godot",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Terminal del proyecto"),
+      "gnome-terminal",
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar proyecto" }));
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith({
+        name: "Godot game",
+        path: null,
+        cover: null,
+        removeCover: false,
+        editor: { kind: "godot", command: null },
+        terminal: { kind: "gnome-terminal", command: null },
+      }),
+    );
+  });
+
+  it("validates a custom editor command with {path}", async () => {
+    const user = userEvent.setup();
+    const { onCreate } = renderModal();
+
+    await screen.findByRole("dialog");
+    await user.type(screen.getByLabelText("Nombre"), "Custom");
+    await user.selectOptions(
+      screen.getByLabelText("Editor del proyecto"),
+      "custom",
+    );
+    await user.type(
+      screen.getByLabelText("Editor del proyecto: Comando personalizado"),
+      "mi-editor --open",
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar proyecto" }));
+
+    expect(
+      screen.getByText("El comando personalizado debe incluir {path}."),
+    ).toBeInTheDocument();
+    expect(onCreate).not.toHaveBeenCalled();
   });
 });

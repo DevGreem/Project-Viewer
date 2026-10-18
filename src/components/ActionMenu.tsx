@@ -5,8 +5,15 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { strings } from "../i18n/es";
+import {
+  defaultEditor,
+  defaultTerminal,
+  effectiveEditor,
+  effectiveTerminal,
+  emptyAvailability,
+} from "../lib/launchers";
 import type {
-  ActionAvailability,
+  LauncherSettingsView,
   Project,
   ProjectAction,
 } from "../types";
@@ -21,7 +28,7 @@ import {
 interface ActionMenuProps {
   project: Project;
   anchor: DOMRect;
-  availability: ActionAvailability;
+  launcherSettings: LauncherSettingsView | null;
   onClose: () => void;
   onEdit: () => void;
   onArchive: () => void;
@@ -35,23 +42,34 @@ function clamp(value: number, min: number, max: number) {
 export function ActionMenu({
   project,
   anchor,
-  availability,
+  launcherSettings,
   onClose,
   onEdit,
   onArchive,
   onAction,
 }: ActionMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const availability = launcherSettings?.availability ?? emptyAvailability;
+  const editor = effectiveEditor(
+    project.editor,
+    launcherSettings?.defaultEditor ?? defaultEditor,
+    availability,
+  );
+  const terminal = effectiveTerminal(
+    project.terminal,
+    launcherSettings?.defaultTerminal ?? defaultTerminal,
+    availability,
+  );
   const hasPath = Boolean(project.path);
   const folderDisabled = !hasPath || !availability.folder;
-  const vscodeDisabled = !hasPath || !availability.vscode;
-  const terminalDisabled = !hasPath || !availability.terminal;
+  const editorDisabled = !hasPath || !editor.available;
+  const terminalDisabled = !hasPath || !terminal.available;
 
   const left = clamp(anchor.left, 8, Math.max(8, window.innerWidth - 272));
   const top = clamp(
     anchor.bottom + 8,
     8,
-    Math.max(8, window.innerHeight - 338),
+    Math.max(8, window.innerHeight - 350),
   );
 
   useEffect(() => {
@@ -111,12 +129,10 @@ export function ActionMenu({
     onClose();
   }
 
-  function withoutPathTitle(base: string) {
-    return hasPath ? base : strings.noPathTooltip;
-  }
-
-  function withoutToolTitle(base: string) {
-    return hasPath ? base : strings.noPathTooltip;
+  function disabledTitle(available: boolean, unavailableMessage: string) {
+    if (!hasPath) return strings.noPathTooltip;
+    if (!available) return unavailableMessage;
+    return undefined;
   }
 
   return createPortal(
@@ -136,11 +152,8 @@ export function ActionMenu({
         className="menu-item"
         disabled={folderDisabled}
         title={
-          !hasPath
-            ? withoutPathTitle(strings.openFolder)
-            : !availability.folder
-              ? strings.noToolTooltip
-              : strings.openFolder
+          disabledTitle(availability.folder, strings.noToolTooltip) ??
+          strings.openFolder
         }
         onClick={() => run("folder")}
       >
@@ -152,18 +165,17 @@ export function ActionMenu({
         type="button"
         role="menuitem"
         className="menu-item"
-        disabled={vscodeDisabled}
+        disabled={editorDisabled}
         title={
-          !hasPath
-            ? withoutToolTitle(strings.openVscode)
-            : !availability.vscode
-              ? strings.noToolTooltip
-              : strings.openVscode
+          disabledTitle(
+            editor.available,
+            strings.launchEditorUnavailable,
+          ) ?? strings.openEditor(editor.label)
         }
-        onClick={() => run("vscode")}
+        onClick={() => run("editor")}
       >
         <CodeIcon />
-        {strings.openVscode}
+        {strings.openEditor(editor.label)}
       </button>
 
       <button
@@ -172,19 +184,15 @@ export function ActionMenu({
         className="menu-item"
         disabled={terminalDisabled}
         title={
-          !hasPath
-            ? withoutToolTitle(strings.openTerminal)
-            : !availability.terminal
-              ? strings.noToolTooltip
-              : strings.openTerminal
+          disabledTitle(
+            terminal.available,
+            strings.launchTerminalUnavailable,
+          ) ?? strings.openTerminal(terminal.label)
         }
         onClick={() => run("terminal")}
       >
         <TerminalIcon />
-        {strings.openTerminal}
-        {availability.terminalName ? (
-          <span className="menu-hint">{availability.terminalName}</span>
-        ) : null}
+        {strings.openTerminal(terminal.label)}
       </button>
 
       <div className="menu-separator" role="separator" />

@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Header } from "./Header";
-import { autostartAvailable } from "../test/fixtures";
+import { autostartAvailable, launcherSettings } from "../test/fixtures";
 
 function renderHeader(
   overrides: Partial<ComponentProps<typeof Header>> = {},
@@ -12,6 +12,7 @@ function renderHeader(
   const onShowActive = vi.fn();
   const onShowArchived = vi.fn();
   const onAutostartChange = vi.fn().mockResolvedValue(undefined);
+  const onLauncherSettingsChange = vi.fn().mockResolvedValue(undefined);
 
   render(
     <Header
@@ -22,11 +23,19 @@ function renderHeader(
       onShowArchived={onShowArchived}
       autostart={autostartAvailable}
       onAutostartChange={onAutostartChange}
+      launcherSettings={launcherSettings}
+      onLauncherSettingsChange={onLauncherSettingsChange}
       {...overrides}
     />,
   );
 
-  return { onNewProject, onShowActive, onShowArchived, onAutostartChange };
+  return {
+    onNewProject,
+    onShowActive,
+    onShowArchived,
+    onAutostartChange,
+    onLauncherSettingsChange,
+  };
 }
 
 describe("Header", () => {
@@ -67,6 +76,41 @@ describe("Header", () => {
     expect(
       screen.getByText(/El arranque automático se configura en la app instalada/),
     ).toBeInTheDocument();
+  });
+
+  it("saves the global launcher settings", async () => {
+    const user = userEvent.setup();
+    const { onLauncherSettingsChange } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Ajustes" }));
+    await user.selectOptions(
+      screen.getByLabelText("Editor por defecto"),
+      "godot",
+    );
+    await user.click(screen.getByRole("button", { name: "Guardar lanzadores" }));
+
+    expect(onLauncherSettingsChange).toHaveBeenCalledWith(
+      { kind: "godot", command: null },
+      { kind: "gnome-terminal", command: null },
+    );
+  });
+
+  it("rejects global custom commands without {path}", async () => {
+    const user = userEvent.setup();
+    const { onLauncherSettingsChange } = renderHeader();
+
+    await user.click(screen.getByRole("button", { name: "Ajustes" }));
+    await user.selectOptions(
+      screen.getByLabelText("Editor por defecto"),
+      "custom",
+    );
+    await user.type(screen.getByLabelText("Comando personalizado"), "mi-editor");
+    await user.click(screen.getByRole("button", { name: "Guardar lanzadores" }));
+
+    expect(
+      screen.getByText("El comando personalizado debe incluir {path}."),
+    ).toBeInTheDocument();
+    expect(onLauncherSettingsChange).not.toHaveBeenCalled();
   });
 
   it("returns to the active view from archived", async () => {

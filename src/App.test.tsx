@@ -5,8 +5,8 @@ import App from "./App";
 import * as api from "./api";
 import { strings } from "./i18n/es";
 import {
-  actionsAvailable,
   autostartAvailable,
+  launcherSettings,
   makeCatalog,
   makeProject,
 } from "./test/fixtures";
@@ -20,7 +20,9 @@ vi.mock("./api", () => ({
   deleteProject: vi.fn(),
   stageCover: vi.fn(),
   discardCover: vi.fn(),
-  getActionAvailability: vi.fn(),
+  getLauncherAvailability: vi.fn(),
+  getLauncherSettings: vi.fn(),
+  setLauncherSettings: vi.fn(),
   openProjectAction: vi.fn(),
   getAutostartState: vi.fn(),
   setAutostartEnabled: vi.fn(),
@@ -39,7 +41,7 @@ describe("App", () => {
     });
 
     mockedApi.getCatalog.mockResolvedValue(makeCatalog([active, archived]));
-    mockedApi.getActionAvailability.mockResolvedValue(actionsAvailable);
+    mockedApi.getLauncherSettings.mockResolvedValue(launcherSettings);
     mockedApi.getAutostartState.mockResolvedValue(autostartAvailable);
     mockedApi.archiveProject.mockResolvedValue(
       makeCatalog([

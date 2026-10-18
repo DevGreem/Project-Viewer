@@ -45,8 +45,38 @@ export const strings = {
   deleteConfirm: "Sí, eliminar",
   deleting: "Eliminando…",
   openFolder: "Abrir carpeta",
-  openVscode: "Abrir en VS Code",
-  openTerminal: "Abrir terminal",
+  openEditor: (label: string) =>
+    label === "Personalizado"
+      ? "Abrir con editor personalizado"
+      : `Abrir en ${label}`,
+  openTerminal: (label: string) =>
+    label === "Personalizado"
+      ? "Abrir terminal (personalizada)"
+      : `Abrir terminal (${label})`,
+  launchers: "Lanzadores",
+  launchersHint:
+    "Editor y terminal que se usan al abrir este proyecto. «Heredar» usa el valor global.",
+  editorDefault: "Editor por defecto",
+  terminalDefault: "Terminal por defecto",
+  editorProject: "Editor del proyecto",
+  terminalProject: "Terminal del proyecto",
+  inherit: "Heredar",
+  inheritFrom: (label: string) => `Heredar (${label})`,
+  automatic: "Automático",
+  custom: "Personalizado",
+  customCommand: "Comando personalizado",
+  customCommandHint:
+    "Incluye {path} donde debe ir la ruta. Se ejecuta sin shell.",
+  saveLaunchers: "Guardar lanzadores",
+  savingLaunchers: "Guardando…",
+  launchersSaved: "Lanzadores actualizados.",
+  notDetected: "no detectado",
+  invalidCommandTemplate: "El comando personalizado debe incluir {path}.",
+  settingsLaunchTitle: "Lanzadores por defecto",
+  settingsLaunchHint:
+    "Se aplican a los proyectos que usan «Heredar». Los comandos personalizados se ejecutan sin shell.",
+  launchEditorUnavailable: "El editor seleccionado no está instalado.",
+  launchTerminalUnavailable: "La terminal seleccionada no está instalada.",
   noPathTooltip: "Asigna una ruta local para abrir este proyecto.",
   noToolTooltip: "No se detectó esta herramienta en el sistema.",
   menuLabel: "Acciones del proyecto",

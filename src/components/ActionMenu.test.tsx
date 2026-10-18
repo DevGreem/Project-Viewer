@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ActionMenu } from "./ActionMenu";
-import { actionsAvailable, makeProject } from "../test/fixtures";
+import { launcherSettings, makeProject } from "../test/fixtures";
 
 const anchor = {
   left: 20,
@@ -29,7 +29,7 @@ function renderMenu(
     <ActionMenu
       project={makeProject()}
       anchor={anchor}
-      availability={actionsAvailable}
+      launcherSettings={launcherSettings}
       onClose={onClose}
       onEdit={onEdit}
       onArchive={onArchive}
@@ -74,19 +74,43 @@ describe("ActionMenu", () => {
   });
 
   it("disables actions when the tool is not available", () => {
-    renderMenu({
+    const unavailable = {
+      ...launcherSettings,
       availability: {
         folder: false,
-        vscode: false,
-        terminal: false,
-        terminalName: null,
+        editors: launcherSettings.availability.editors.map((option) => ({
+          ...option,
+          available: false,
+        })),
+        terminals: launcherSettings.availability.terminals.map((option) => ({
+          ...option,
+          available: false,
+        })),
       },
-    });
+    };
+
+    renderMenu({ launcherSettings: unavailable });
 
     expect(screen.getByRole("menuitem", { name: "Abrir carpeta" })).toBeDisabled();
     expect(
       screen.getByRole("menuitem", { name: "Abrir en VS Code" }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("menuitem", { name: /Abrir terminal/ }),
+    ).toBeDisabled();
+  });
+
+  it("uses the project editor override in the label and action", async () => {
+    const user = userEvent.setup();
+    const { onAction } = renderMenu({
+      project: makeProject({
+        editor: { kind: "godot", command: null },
+      }),
+    });
+
+    await user.click(screen.getByRole("menuitem", { name: "Abrir en Godot" }));
+
+    expect(onAction).toHaveBeenCalledWith("editor");
   });
 
   it("focuses the first enabled action and supports arrow navigation", async () => {

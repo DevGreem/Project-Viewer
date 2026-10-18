@@ -1,11 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  ActionAvailability,
   AutostartState,
   CatalogView,
+  EditorChoice,
+  LauncherAvailability,
+  LauncherSettingsView,
   ProjectAction,
   ProjectInput,
   StagedCover,
+  TerminalChoice,
 } from "./types";
 
 export function getCatalog(): Promise<CatalogView> {
@@ -43,8 +46,22 @@ export function discardCover(coverPath: string): Promise<void> {
   return invoke<void>("discard_cover", { coverPath });
 }
 
-export function getActionAvailability(): Promise<ActionAvailability> {
-  return invoke<ActionAvailability>("get_action_availability");
+export function getLauncherAvailability(): Promise<LauncherAvailability> {
+  return invoke<LauncherAvailability>("get_launcher_availability");
+}
+
+export function getLauncherSettings(): Promise<LauncherSettingsView> {
+  return invoke<LauncherSettingsView>("get_launcher_settings");
+}
+
+export function setLauncherSettings(
+  editor: EditorChoice,
+  terminal: TerminalChoice,
+): Promise<LauncherSettingsView> {
+  return invoke<LauncherSettingsView>("set_launcher_settings", {
+    editor,
+    terminal,
+  });
 }
 
 export function openProjectAction(

@@ -6,20 +6,23 @@ import {
   openProjectAction,
   restoreProject,
   setAutostartEnabled,
+  setLauncherSettings,
   updateProject,
 } from "./api";
 import { strings } from "./i18n/es";
 import { errorMessage } from "./lib/errors";
 import type {
+  EditorChoice,
   Project,
   ProjectAction,
   ProjectInput,
+  TerminalChoice,
   ToastKind,
   ToastMessage,
 } from "./types";
-import { useActionAvailability } from "./hooks/useActionAvailability";
 import { useAutostart } from "./hooks/useAutostart";
 import { useCatalog } from "./hooks/useCatalog";
+import { useLauncherSettings } from "./hooks/useLauncherSettings";
 import { ActionMenu } from "./components/ActionMenu";
 import { ArchivedView } from "./components/ArchivedView";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -40,8 +43,11 @@ type ModalState =
 
 export default function App() {
   const { catalog, loading, error, reload, setCatalog } = useCatalog();
-  const availability = useActionAvailability();
   const { autostart, setAutostart } = useAutostart();
+  const {
+    launcherSettings,
+    setLauncherSettings: setLauncherSettingsState,
+  } = useLauncherSettings();
 
   const [view, setView] = useState<View>("active");
   const [modal, setModal] = useState<ModalState>(null);
@@ -168,6 +174,19 @@ export default function App() {
     [setAutostart, showToast],
   );
 
+  const handleLauncherSettingsChange = useCallback(
+    async (editor: EditorChoice, terminal: TerminalChoice) => {
+      try {
+        const next = await setLauncherSettings(editor, terminal);
+        setLauncherSettingsState(next);
+        showToast("success", strings.launchersSaved);
+      } catch (caught) {
+        showToast("error", errorMessage(caught));
+      }
+    },
+    [setLauncherSettingsState, showToast],
+  );
+
   const header = (
     <Header
       view={view}
@@ -177,6 +196,8 @@ export default function App() {
       onShowArchived={() => setView("archived")}
       autostart={autostart}
       onAutostartChange={handleAutostartChange}
+      launcherSettings={launcherSettings}
+      onLauncherSettingsChange={handleLauncherSettingsChange}
     />
   );
 
@@ -253,7 +274,7 @@ export default function App() {
         <ActionMenu
           project={menu.project}
           anchor={menu.anchor}
-          availability={availability}
+          launcherSettings={launcherSettings}
           onClose={() => setMenu(null)}
           onEdit={() => {
             setMenu(null);
@@ -268,6 +289,7 @@ export default function App() {
         open={modal !== null}
         project={modal?.mode === "edit" ? modal.project : null}
         dataDir={catalog?.dataDir ?? ""}
+        launcherSettings={launcherSettings}
         onClose={() => setModal(null)}
         onCreate={handleCreate}
         onUpdate={handleUpdate}

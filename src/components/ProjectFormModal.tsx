@@ -10,22 +10,62 @@ import { discardCover, stageCover } from "../api";
 import { strings } from "../i18n/es";
 import { coverUrl, initials, toneFor } from "../lib/cover";
 import { errorMessage } from "../lib/errors";
-import type { Project, ProjectInput } from "../types";
+import {
+  commandValidationError,
+  editorChoiceForSelect,
+  editorLabels,
+  editorKinds,
+  findOption,
+  terminalChoiceForSelect,
+  terminalLabels,
+  terminalKinds,
+} from "../lib/launchers";
+import type {
+  EditorChoice,
+  LauncherSettingsView,
+  Project,
+  ProjectInput,
+  TerminalChoice,
+} from "../types";
 import { CloseIcon, FolderIcon, ImageIcon } from "./icons";
 
 interface ProjectFormModalProps {
   open: boolean;
   project: Project | null;
   dataDir: string;
+  launcherSettings: LauncherSettingsView | null;
   onClose: () => void;
   onCreate: (input: ProjectInput) => Promise<void>;
   onUpdate: (projectId: string, input: ProjectInput) => Promise<void>;
+}
+
+function optionLabel(label: string, available: boolean | undefined) {
+  return available === false ? `${label} (${strings.notDetected})` : label;
+}
+
+function normalizeEditor(choice: EditorChoice | null): EditorChoice | null {
+  if (!choice) return null;
+  return {
+    kind: choice.kind,
+    command:
+      choice.kind === "custom" ? choice.command?.trim() ?? "" : null,
+  };
+}
+
+function normalizeTerminal(choice: TerminalChoice | null): TerminalChoice | null {
+  if (!choice) return null;
+  return {
+    kind: choice.kind,
+    command:
+      choice.kind === "custom" ? choice.command?.trim() ?? "" : null,
+  };
 }
 
 export function ProjectFormModal({
   open,
   project,
   dataDir,
+  launcherSettings,
   onClose,
   onCreate,
   onUpdate,
@@ -38,6 +78,9 @@ export function ProjectFormModal({
   const [path, setPath] = useState("");
   const [stagedCover, setStagedCover] = useState<string | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
+  const [editorChoice, setEditorChoice] = useState<EditorChoice | null>(null);
+  const [terminalChoice, setTerminalChoice] =
+    useState<TerminalChoice | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
@@ -46,6 +89,28 @@ export function ProjectFormModal({
   const previewCover = removeCover ? null : stagedCover ?? existingCover;
   const previewUrl = coverUrl(dataDir, previewCover);
   const tone = toneFor(project?.id ?? (name || "new-project"));
+  const editorOptions = launcherSettings?.availability.editors ?? [];
+  const terminalOptions = launcherSettings?.availability.terminals ?? [];
+  const globalEditor = launcherSettings?.defaultEditor ?? {
+    kind: "auto" as const,
+    command: null,
+  };
+  const globalTerminal = launcherSettings?.defaultTerminal ?? {
+    kind: "auto" as const,
+    command: null,
+  };
+  const editorValue = editorChoice?.kind ?? "inherit";
+  const terminalValue = terminalChoice?.kind ?? "inherit";
+  const editorUnavailable =
+    editorChoice !== null &&
+    editorChoice.kind !== "auto" &&
+    editorChoice.kind !== "custom" &&
+    findOption(editorOptions, editorChoice.kind)?.available === false;
+  const terminalUnavailable =
+    terminalChoice !== null &&
+    terminalChoice.kind !== "auto" &&
+    terminalChoice.kind !== "custom" &&
+    findOption(terminalOptions, terminalChoice.kind)?.available === false;
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +118,8 @@ export function ProjectFormModal({
     setPath(project?.path ?? "");
     setStagedCover(null);
     setRemoveCover(false);
+    setEditorChoice(project?.editor ?? null);
+    setTerminalChoice(project?.terminal ?? null);
     setError(null);
     setPreviewFailed(false);
   }, [open, project]);
@@ -149,6 +216,14 @@ export function ProjectFormModal({
       return;
     }
 
+    const launcherError =
+      commandValidationError(editorChoice) ??
+      commandValidationError(terminalChoice);
+    if (launcherError) {
+      setError(launcherError);
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -157,6 +232,8 @@ export function ProjectFormModal({
       path: trimmedPath || null,
       cover: removeCover ? null : stagedCover ?? existingCover,
       removeCover,
+      editor: normalizeEditor(editorChoice),
+      terminal: normalizeTerminal(terminalChoice),
     };
 
     try {
@@ -287,6 +364,112 @@ export function ProjectFormModal({
                 <small className="field-hint">{strings.coverHint}</small>
               </div>
             </div>
+          </div>
+
+          <div className="field launcher-section">
+            <span>{strings.launchers}</span>
+            <small className="field-hint">{strings.launchersHint}</small>
+
+            <label className="field">
+              <span>{strings.editorProject}</span>
+              <select
+                value={editorValue}
+                aria-label={strings.editorProject}
+                onChange={(event) => {
+                  const next = editorChoiceForSelect(event.target.value);
+                  setEditorChoice(next);
+                }}
+              >
+                <option value="inherit">
+                  {strings.inheritFrom(editorLabels[globalEditor.kind])}
+                </option>
+                <option value="auto">{strings.automatic}</option>
+                {editorKinds
+                  .filter((kind) => kind !== "auto" && kind !== "custom")
+                  .map((kind) => (
+                    <option key={kind} value={kind}>
+                      {optionLabel(
+                        editorLabels[kind],
+                        findOption(editorOptions, kind)?.available,
+                      )}
+                    </option>
+                  ))}
+                <option value="custom">{strings.custom}</option>
+              </select>
+            </label>
+            {editorChoice?.kind === "custom" ? (
+              <label className="field">
+                <span>{strings.customCommand}</span>
+                <input
+                  value={editorChoice.command ?? ""}
+                  onChange={(event) =>
+                    setEditorChoice({
+                      ...editorChoice,
+                      command: event.target.value,
+                    })
+                  }
+                  placeholder="mi-editor --open {path}"
+                  aria-label={`${strings.editorProject}: ${strings.customCommand}`}
+                  spellCheck={false}
+                />
+              </label>
+            ) : null}
+            {editorUnavailable ? (
+              <small className="field-hint warning">
+                {strings.launchEditorUnavailable}
+              </small>
+            ) : null}
+
+            <label className="field">
+              <span>{strings.terminalProject}</span>
+              <select
+                value={terminalValue}
+                aria-label={strings.terminalProject}
+                onChange={(event) => {
+                  const next = terminalChoiceForSelect(event.target.value);
+                  setTerminalChoice(next);
+                }}
+              >
+                <option value="inherit">
+                  {strings.inheritFrom(terminalLabels[globalTerminal.kind])}
+                </option>
+                <option value="auto">{strings.automatic}</option>
+                {terminalKinds
+                  .filter((kind) => kind !== "auto" && kind !== "custom")
+                  .map((kind) => (
+                    <option key={kind} value={kind}>
+                      {optionLabel(
+                        terminalLabels[kind],
+                        findOption(terminalOptions, kind)?.available,
+                      )}
+                    </option>
+                  ))}
+                <option value="custom">{strings.custom}</option>
+              </select>
+            </label>
+            {terminalChoice?.kind === "custom" ? (
+              <label className="field">
+                <span>{strings.customCommand}</span>
+                <input
+                  value={terminalChoice.command ?? ""}
+                  onChange={(event) =>
+                    setTerminalChoice({
+                      ...terminalChoice,
+                      command: event.target.value,
+                    })
+                  }
+                  placeholder="mi-terminal --cwd {path}"
+                  aria-label={`${strings.terminalProject}: ${strings.customCommand}`}
+                  spellCheck={false}
+                />
+              </label>
+            ) : null}
+            {terminalUnavailable ? (
+              <small className="field-hint warning">
+                {strings.launchTerminalUnavailable}
+              </small>
+            ) : null}
+            <small className="field-hint">{strings.customCommandHint}</small>
           </div>
 
           {error ? (
